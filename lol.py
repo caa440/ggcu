@@ -3,6 +3,7 @@ import random
 import time
 import argparse
 import struct
+import sys
 
 def create_ip_header(src_ip, dest_ip):
     ip_ihl = 5
